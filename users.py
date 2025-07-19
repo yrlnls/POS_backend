@@ -8,7 +8,9 @@ users_bp = Blueprint('users', __name__)
 @jwt_required()
 def get_users():
     current_user = get_jwt_identity()
-    if current_user['role'] != 'admin':
+    # current_user is now a string (user id), so fetch user from DB
+    user = User.query.get(int(current_user))
+    if not user or user.role != 'admin':
         return jsonify({"msg": "Unauthorized"}), 403
     
     users = User.query.all()
@@ -23,7 +25,9 @@ def get_users():
 @jwt_required()
 def get_user(user_id):
     current_user = get_jwt_identity()
-    if current_user['role'] != 'admin' and current_user['id'] != user_id:
+    # current_user is a string (user id), fetch user from DB
+    user = User.query.get(int(current_user))
+    if not user or (user.role != 'admin' and user.id != user_id):
         return jsonify({"msg": "Unauthorized"}), 403
     
     user = User.query.get_or_404(user_id)

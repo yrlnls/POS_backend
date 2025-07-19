@@ -17,11 +17,7 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({'message': 'Invalid username or password'}), 401
 
-    access_token = create_access_token(identity={
-        'id': user.id,
-        'username': user.username,
-        'role': user.role
-    })
+    access_token = create_access_token(identity=str(user.id), additional_claims={'role': user.role})
     return jsonify(access_token=access_token, role=user.role)
 
 @auth_bp.route('/protected', methods=['GET'])
