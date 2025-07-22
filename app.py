@@ -1,35 +1,45 @@
-from flask import Flask
-from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
-import os
-from dotenv import load_dotenv
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import User, db
 
-load_dotenv()
+users_bp = Blueprint('users', __name__, url_prefix='/api/users')
 
-app = Flask(__name__)
-CORS(app, supports_credentials=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///pos.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'capitalfibre')
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600
+@users_bp.route('', methods=['GET'])
+@jwt_required()
+def get_users():
+    current_user = get_jwt_identity()
+    # current_user is now a string (user id), so fetch user from DB
+    user = User.query.get(int(current_user))
+    if not user or user.role != 'admin':
+        return jsonify({"msg": "Unauthorized"}), 403
+app.register_blueprint(service_plans_bp)
+app.register_blueprint(subscriptions_bp)
+app.register_blueprint(payments_bp)
+app.register_blueprint(equipment_bp)
+app.register_blueprint(network_nodes_bp)
+app.register_blueprint(dashboard_bp)
+    
+    users = User.query.all()
+    return jsonify([{
+        'id': user.id,
+        'username': user.username,
+        'role': user.role,
+        'email': user.email
+    } for user in users])
 
-# Initialize extensions
-db = SQLAlchemy(app)  # Only SQLAlchemy instance
-migrate = Migrate(app, db)
-jwt = JWTManager(app)
-
-# Register blueprints
-from auth import auth_bp
-from users import users_bp
-from customers import customers_bp
-from tickets import tickets_bp
-
-app.register_blueprint(auth_bp)
-app.register_blueprint(users_bp)
-app.register_blueprint(customers_bp)
-app.register_blueprint(tickets_bp)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+@users_bp.route('/users/<int:user_id>', methods=['GET'])
+@jwt_required()
+def get_user(user_id):
+    current_user = get_jwt_identity()
+    # current_user is a string (user id), fetch user from DB
+    user = User.query.get(int(current_user))
+    if not user or (user.role != 'admin' and user.id != user_id):
+        return jsonify({"msg": "Unauthorized"}), 403
+    
+    user = User.query.get_or_404(user_id)
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'role': user.role,
+        'email': user.email
+    })
